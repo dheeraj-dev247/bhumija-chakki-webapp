@@ -4,7 +4,7 @@
 <title>Bhumija Chakki</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script>tailwind.config={theme:{extend:{colors:{s:'var(--s)',sl:'var(--sl)',sc:'var(--sc)',sh:'var(--sh)',w:'var(--w)',tx:'var(--tx)',tv:'var(--tv)',ol:'var(--ol)',ov:'var(--ov)',p:'var(--p)',pc:'var(--pc)',onp:'var(--onp)',pf:'var(--pf)',sec:'var(--sec)',sf:'var(--sf)',er:'var(--er)'},fontFamily:{sans:['Plus Jakarta Sans','system-ui','sans-serif']}}}}</script>
@@ -17,6 +17,19 @@ body{background:var(--s);color:var(--tx);font-family:'Plus Jakarta Sans',system-
 .fill{font-variation-settings:'FILL' 1}
 button{cursor:pointer;transition:transform .1s}button:active{transform:scale(.97)}
 #sheet{transition:transform .3s}.noscroll::-webkit-scrollbar{display:none}
+#loc{display:none;position:fixed;inset:0;z-index:60;background:var(--s)}#loc.open{display:block}
+#map{position:absolute;inset:0;z-index:0;isolation:isolate;background:var(--sc)}
+#map img{max-width:none!important;max-height:none!important}
+.mtop{position:absolute;top:0;left:0;right:0;z-index:5;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;background:linear-gradient(var(--s) 70%,transparent)}
+.mbar{display:flex;gap:8px;align-items:center}
+.mbar button{flex:none;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--ov);background:var(--w);color:var(--tx);font-size:20px;cursor:pointer}
+.mbar input{flex:1;min-width:0;height:44px;margin:0;padding:0 14px;border:1.5px solid var(--ov);border-radius:12px;font:inherit;font-size:16px;background:var(--w);color:var(--tx);box-shadow:0 2px 10px rgba(0,0,0,.15);outline:none}
+#res{display:none;background:var(--w);border:1px solid var(--ov);border-radius:12px;margin-top:6px;max-height:40vh;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.2)}
+#res div{padding:12px;border-bottom:1px solid var(--ov);font-size:14px;cursor:pointer;line-height:1.3}#res div:last-child{border:0}
+.pin{position:absolute;left:50%;top:50%;z-index:4;width:36px;height:46px;margin:-46px 0 0 -18px;pointer-events:none;transition:transform .15s}.pin.lift{transform:translateY(-10px)}
+#pdot{position:absolute;left:50%;top:50%;z-index:3;width:10px;height:4px;margin:-2px 0 0 -5px;border-radius:50%;background:rgba(0,0,0,.35);pointer-events:none}
+.mbot{position:absolute;left:0;right:0;bottom:0;z-index:5;background:var(--s);border-radius:20px 20px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 18px rgba(0,0,0,.2)}
+#locate{position:absolute;right:12px;top:-62px;width:48px;height:48px;border-radius:50%;border:0;background:var(--w);color:var(--p);font-size:22px;box-shadow:0 3px 12px rgba(0,0,0,.3);cursor:pointer}
 </style></head>
 <body>
 <div id="app" class="max-w-md mx-auto min-h-screen relative">
@@ -26,7 +39,15 @@ button{cursor:pointer;transition:transform .1s}button:active{transform:scale(.97
 </header>
 <main id="view" class="px-4 pb-28 pt-2"></main>
 <nav class="fixed bottom-0 inset-x-0 z-30 bg-s/95 backdrop-blur border-t border-sh" style="padding-bottom:env(safe-area-inset-bottom,0px)"><div id="nav" class="max-w-md mx-auto h-16 flex"></div></nav>
-<div id="loc" class="fixed inset-0 z-[60] bg-s hidden flex-col"></div>
+<div id="loc">
+ <div id="map"></div>
+ <div class="mtop"><div class="mbar"><button id="mBack" aria-label="Back">←</button><input id="mSearch" type="search" placeholder="Search area, street or landmark" autocomplete="off"></div><div id="res"></div></div>
+ <svg class="pin" id="pin" viewBox="0 0 36 46"><path d="M18 45C18 45 3 28 3 16a15 15 0 0 1 30 0c0 12-15 29-15 29z" fill="#00361a" stroke="#fff" stroke-width="2"/><circle cx="18" cy="16" r="6" fill="#fff"/></svg><div id="pdot"></div>
+ <div class="mbot"><button id="locate" aria-label="Use my current location">◎</button>
+  <div class="flex items-center gap-3"><img id="mlogo" alt="" class="w-11 h-11 rounded-full bg-white p-0.5 shadow-sm shrink-0"><div class="min-w-0 flex-1"><div id="mTitle" class="text-[11px] text-ol">Delivery location</div><div id="mArea" class="text-base font-bold truncate">Move the map to place the pin</div><div id="mAddr" class="text-[11px] text-ol" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"></div></div></div>
+  <input id="ldet" maxlength="120" placeholder="House / flat no., building, landmark (optional)" class="w-full h-12 mt-3 px-3.5 rounded-xl bg-sl border border-ov text-sm outline-none focus:border-p" style="font-size:16px">
+  <button id="mOk" class="w-full h-12 mt-3 rounded-xl bg-p text-onp font-bold text-sm">Confirm location</button></div>
+</div>
 <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[70] bg-tx text-s px-4 py-2 rounded-full text-xs font-semibold opacity-0 pointer-events-none transition-opacity"></div>
 <div id="ov" class="fixed inset-0 z-40 bg-black/50 hidden" onclick="closeSheet()"></div>
 <div id="sheet" class="fixed bottom-0 inset-x-0 z-50 max-w-md mx-auto bg-s rounded-t-3xl translate-y-full max-h-[90vh] flex flex-col" style="padding-bottom:env(safe-area-inset-bottom,0px)"></div>
@@ -129,43 +150,63 @@ const LOGO='data:image/webp;base64,UklGRrCiAABXRUJQVlA4WAoAAAAQAAAA7wAA7wAAQUxQS
 (()=>{const i=document.getElementById('hlogo');if(i)i.src=LOGO})();
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const BB={la0:12.70,la1:13.30,ln0:77.30,ln1:77.90};
-let LS={la:13.0124,ln:77.7108,detail:'',area:'',addr:''},map=null,gtok=0,gt=0,stm=0,SR=[];
+const CITY=[12.9716,77.5946];
+let map=null,cur=null,rq=0,tmr=null,stmr=null;
 function updHdr(){const e=$('hloc');if(e)e.innerHTML=`<span class="truncate max-w-[150px]">${esc(S.loc?S.loc.area:'Select location')}</span><span class="ms !text-base text-ol shrink-0">expand_more</span>`}
-const cs=()=>LS.la.toFixed(5)+'°N, '+LS.ln.toFixed(5)+'°E';
-const lift=on=>{const p=$('pinw');if(!p)return;p.style.transform='translate(-50%,-100%) translateY('+(on?-14:0)+'px)';$('pdot').style.transform='translate(-50%,-50%) scale('+(on?1.5:1)+')';$('ptip').style.opacity=on?0:1};
-function revGeo(){const my=++gtok,la=LS.la,ln=LS.ln;$('lname').textContent='Locating…';$('lcoord').textContent=cs();
- fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${la}&lon=${ln}`).then(r=>r.json()).then(j=>{if(my!==gtok)return;const a=j.address||{};LS.area=a.suburb||a.neighbourhood||a.city_district||a.village||a.town||a.city||(j.display_name||'').split(',')[0]||'Pinned location';LS.addr=j.display_name||'';$('lname').textContent=LS.area;$('lcoord').textContent=LS.addr||cs()}).catch(()=>{if(my!==gtok)return;LS.area='Pinned location';LS.addr='';$('lname').textContent=LS.area;$('lcoord').textContent=cs()})}
-function drawLoc(){const first=!S.loc,sp='onpointerdown="event.stopPropagation()"';if(map){map.remove();map=null}
- $('loc').innerHTML=`<div id="mapbox" class="relative flex-1 min-h-0 overflow-hidden" style="background:var(--sc)">
- <div id="lmap" class="absolute inset-0" style="z-index:0"></div>
- <div class="absolute inset-x-0 top-0 px-3 flex items-start gap-2 pointer-events-none z-[1000]" style="padding-top:calc(env(safe-area-inset-top,0px) + .75rem)">
-  ${first?'':`<button onclick="closeLoc()" aria-label="Back" class="pointer-events-auto w-11 h-11 rounded-full bg-w shadow-md flex items-center justify-center shrink-0"><span class="ms">arrow_back</span></button>`}
-  <div class="relative flex-1 pointer-events-auto"><div class="flex items-center h-11 px-3.5 rounded-full bg-w shadow-md"><span class="ms text-ol !text-xl">search</span><input id="lq" oninput="locSearch(this.value)" autocomplete="off" placeholder="Search for area, street or landmark" class="flex-1 min-w-0 bg-transparent outline-none px-2 text-sm"></div><div id="lres" class="hidden absolute left-0 right-0 top-12 rounded-2xl bg-w shadow-lg overflow-hidden max-h-72 overflow-y-auto"></div></div></div>
- <div id="pinw" class="absolute left-1/2 top-1/2 pointer-events-none z-[900]" style="transform:translate(-50%,-100%);transition:transform .15s"><div id="ptip" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-3 py-1.5 rounded-lg bg-tx text-s text-[11px] font-semibold whitespace-nowrap shadow-lg transition-opacity">Move map to adjust pin</div><svg width="44" height="54" viewBox="0 0 44 54" style="filter:drop-shadow(0 3px 3px rgba(0,0,0,.3))"><path d="M22 53C8 38 4 30 4 21a18 18 0 0 1 36 0c0 9-4 17-18 32Z" fill="var(--p)" stroke="#fff" stroke-width="2.5"/><circle cx="22" cy="21" r="7" fill="#fff"/></svg></div>
- <div id="pdot" class="absolute left-1/2 top-1/2 w-3 h-1.5 rounded-full bg-black/35 pointer-events-none z-[900]" style="transform:translate(-50%,-50%);transition:transform .15s"></div>
- <div class="absolute right-3 bottom-6 flex flex-col gap-2 z-[1000]"><button onclick="map&&map.zoomIn()" aria-label="Zoom in" class="w-10 h-10 rounded-full bg-w shadow-md flex items-center justify-center"><span class="ms">add</span></button><button onclick="map&&map.zoomOut()" aria-label="Zoom out" class="w-10 h-10 rounded-full bg-w shadow-md flex items-center justify-center"><span class="ms">remove</span></button><button onclick="tryGeo(false)" aria-label="Use my current location" class="w-12 h-12 rounded-full bg-w shadow-md flex items-center justify-center text-p"><span class="ms fill">my_location</span></button></div></div>
- <div class="bg-s rounded-t-3xl px-4 pt-4 relative z-[1001]" style="box-shadow:0 -8px 24px rgba(0,0,0,.14);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 1rem)">
-  <div class="flex items-center gap-3"><img src="${LOGO}" alt="" class="w-11 h-11 rounded-full bg-white p-0.5 shadow-sm shrink-0"><div class="min-w-0 flex-1"><div class="text-[11px] text-ol">${first?'Where should we deliver?':'Delivery location'}</div><div class="flex items-center gap-1"><span class="ms text-p fill !text-xl shrink-0">location_on</span><b id="lname" class="text-base truncate"></b></div><div id="lcoord" class="text-[11px] text-ol line-clamp-2"></div></div></div>
-  <input id="ldet" maxlength="120" value="${esc(LS.detail)}" placeholder="House / flat no., building, landmark (optional)" class="w-full h-12 mt-3 px-3.5 rounded-xl bg-sl border border-ov text-sm outline-none focus:border-p">
-  <button onclick="saveLoc()" class="w-full h-12 mt-3 rounded-xl bg-p text-onp font-bold text-sm flex items-center justify-center gap-2"><span class="ms !text-xl">check_circle</span>Confirm location</button>
-  ${first?'<button onclick="closeLoc()" class="w-full mt-1 py-2 text-xs font-semibold text-tv">Skip for now</button>':''}</div>`;
- $('lname').textContent=LS.area||'Locating…';$('lcoord').textContent=LS.addr||cs();
- if(typeof L==='undefined'){$('lmap').innerHTML='<div class="h-full flex items-center justify-center text-center text-sm text-tv p-8">The map couldn’t load. Please check your internet connection and reopen this screen.</div>';return}
- map=L.map('lmap',{zoomControl:false}).setView([LS.la,LS.ln],S.loc?17:15);
- const osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);let te=0;
- osm.on('tileerror',()=>{if(++te===5){map.removeLayer(osm);L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri'}).addTo(map)}});
- map.on('movestart',()=>lift(true));
- map.on('move',()=>{const c=map.getCenter();LS.la=c.lat;LS.ln=c.lng});
- map.on('moveend',()=>{const c=map.getCenter();LS.la=c.lat;LS.ln=c.lng;lift(false);clearTimeout(gt);gt=setTimeout(revGeo,300)});
- setTimeout(()=>{map&&map.invalidateSize();revGeo()},60)}
-function locSearch(v){const r=$('lres');v=v.trim();clearTimeout(stm);if(v.length<3){r.classList.add('hidden');return}
- stm=setTimeout(()=>fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=in&viewbox=${BB.ln0},${BB.la1},${BB.ln1},${BB.la0}&q=${encodeURIComponent(v)}`).then(x=>x.json()).then(j=>{SR=j;r.innerHTML=j.length?j.map((a,i)=>{const p=String(a.display_name).split(',');return `<button onclick="pickRes(${i})" class="w-full flex items-start gap-3 px-3.5 py-3 text-left text-sm border-b border-sh last:border-0"><span class="ms text-ol mt-0.5">location_on</span><span class="min-w-0"><b class="block truncate">${esc(p[0])}</b><span class="block text-[11px] text-ol line-clamp-2">${esc(p.slice(1).join(',').trim())}</span></span></button>`}).join(''):'<div class="px-4 py-3 text-xs text-ol">No results — try another name or drag the map</div>';r.classList.remove('hidden')}).catch(()=>{r.innerHTML='<div class="px-4 py-3 text-xs text-ol">Search isn’t available right now — drag the map instead</div>';r.classList.remove('hidden')}),400)}
-function pickRes(i){const a=SR[i];if(!a||!map)return;$('lres').classList.add('hidden');$('lq').value=String(a.display_name).split(',')[0];$('lq').blur();map.setView([+a.lat,+a.lon],17)}
-function tryGeo(auto){try{if(!navigator.geolocation){if(!auto)toast('Location isn’t available here — search or drag the map');return}
- navigator.geolocation.getCurrentPosition(p=>{if(map){map.setView([p.coords.latitude,p.coords.longitude],17);toast('Location found — confirm to save')}},()=>{if(!auto)toast('Couldn’t get your location — search or drag the map')},{enableHighAccuracy:true,timeout:10000})}catch(e){if(!auto)toast('Couldn’t get your location — search or drag the map')}}
-function openLoc(){LS=S.loc?{la:S.loc.lat,ln:S.loc.lng,detail:S.loc.detail||'',area:S.loc.area||'',addr:S.loc.addr||''}:{la:13.0124,ln:77.7108,detail:'',area:'',addr:''};const o=$('loc');o.classList.remove('hidden');o.classList.add('flex');drawLoc();if(!S.loc)tryGeo(true)}
-function closeLoc(){const o=$('loc');o.classList.add('hidden');o.classList.remove('flex')}
-function saveLoc(){if(LS.la<BB.la0||LS.la>BB.la1||LS.ln<BB.ln0||LS.ln>BB.ln1)toast('Note: we currently deliver within Bengaluru only');S.loc={area:LS.area||'Pinned location',addr:LS.addr||'',lat:+LS.la.toFixed(5),lng:+LS.ln.toFixed(5),detail:$('ldet').value.trim().slice(0,120)};save();closeLoc();render();toast('Delivering to '+S.loc.area)}
+function openLoc(){
+ $('loc').classList.add('open');$('mlogo').src=LOGO;
+ $('mTitle').textContent=S.loc?'Delivery location':'Where should we deliver?';
+ $('ldet').value=(S.loc&&S.loc.detail)||'';$('mSearch').value='';$('res').style.display='none';
+ if(typeof L==='undefined'){$('mArea').textContent='Map couldn’t load';$('mAddr').textContent='Please check your internet connection and reopen this screen.';return}
+ if(!map){
+  map=L.map('map',{zoomControl:false,attributionControl:true}).setView(S.loc?[S.loc.lat,S.loc.lng]:CITY,S.loc?17:12);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  map.on('movestart',()=>$('pin').classList.add('lift'));
+  map.on('moveend',()=>{$('pin').classList.remove('lift');clearTimeout(tmr);tmr=setTimeout(reverse,350)});
+  if(!S.loc)locateMe(true);
+ }else if(S.loc){map.setView([S.loc.lat,S.loc.lng],17)}
+ setTimeout(()=>{map.invalidateSize();reverse()},60);
+}
+function closeLoc(){$('loc').classList.remove('open')}
+async function reverse(){
+ const c=map.getCenter(),id=++rq;$('mArea').textContent='Finding address…';$('mAddr').textContent='';
+ cur={lat:c.lat.toFixed(6),lng:c.lng.toFixed(6),addr:'',area:''};
+ try{
+  const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${c.lat}&lon=${c.lng}&zoom=18`);
+  const j=await r.json();if(id!==rq)return;const a=j.address||{};
+  cur.addr=j.display_name||'';
+  cur.area=a.suburb||a.neighbourhood||a.city_district||a.village||a.town||a.city||(cur.addr.split(',')[0])||'Pinned location';
+  $('mArea').textContent=cur.area;$('mAddr').textContent=cur.addr;
+ }catch(e){if(id===rq){cur.area='Pinned location';$('mArea').textContent=cur.area;$('mAddr').textContent=cur.lat+', '+cur.lng}}
+}
+function locateMe(quiet){
+ if(!navigator.geolocation){if(!quiet)toast('Location isn’t supported on this device');return}
+ navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],17),
+  ()=>{if(!quiet)toast('Couldn’t get your location — allow location access or search for your area')},
+  {enableHighAccuracy:true,timeout:15000});
+}
+async function search(q){
+ const box=$('res');
+ if(q.length<3){box.style.display='none';return}
+ try{
+  const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=in&q=${encodeURIComponent(q)}`);
+  const j=await r.json();
+  box.innerHTML=j.length?'':'<div>No results found</div>';
+  j.forEach(x=>{const d=document.createElement('div');d.textContent=x.display_name;
+   d.onclick=()=>{map.setView([x.lat,x.lon],17);box.style.display='none';$('mSearch').blur()};box.appendChild(d)});
+  box.style.display='block';
+ }catch(e){box.innerHTML='<div>Search unavailable. Move the map instead.</div>';box.style.display='block'}
+}
+$('mBack').onclick=closeLoc;
+$('locate').onclick=()=>locateMe(false);
+$('mSearch').oninput=e=>{clearTimeout(stmr);const v=e.target.value.trim();stmr=setTimeout(()=>search(v),700)};
+$('mOk').onclick=()=>{
+ if(!cur)return;
+ const la=+cur.lat,ln=+cur.lng;
+ if(la<BB.la0||la>BB.la1||ln<BB.ln0||ln>BB.ln1)toast('Note: we currently deliver within Bengaluru only');
+ S.loc={area:cur.area||'Pinned location',addr:cur.addr||'',lat:la,lng:ln,detail:$('ldet').value.trim().slice(0,120)};
+ save();closeLoc();render();toast('Delivering to '+S.loc.area);
+};
 // ---- customize sheet ----
 let C={tex:1,pack:1,combos:[]};
 function openSheet(id){C={tex:1,pack:1,combos:[],id};drawSheet();$('ov').classList.remove('hidden');requestAnimationFrame(()=>$('sheet').style.transform='translateY(0)')}
