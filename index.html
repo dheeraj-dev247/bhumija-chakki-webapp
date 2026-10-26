@@ -152,7 +152,8 @@ function drawLoc(){const first=!S.loc,sp='onpointerdown="event.stopPropagation()
  $('lname').textContent=LS.area||'Locating…';$('lcoord').textContent=LS.addr||cs();
  if(typeof L==='undefined'){$('lmap').innerHTML='<div class="h-full flex items-center justify-center text-center text-sm text-tv p-8">The map couldn’t load. Please check your internet connection and reopen this screen.</div>';return}
  map=L.map('lmap',{zoomControl:false}).setView([LS.la,LS.ln],S.loc?17:15);
- L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
+ const osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);let te=0;
+ osm.on('tileerror',()=>{if(++te===5){map.removeLayer(osm);L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri'}).addTo(map)}});
  map.on('movestart',()=>lift(true));
  map.on('move',()=>{const c=map.getCenter();LS.la=c.lat;LS.ln=c.lng});
  map.on('moveend',()=>{const c=map.getCenter();LS.la=c.lat;LS.ln=c.lng;lift(false);clearTimeout(gt);gt=setTimeout(revGeo,300)});
